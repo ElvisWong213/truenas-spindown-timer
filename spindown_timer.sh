@@ -472,7 +472,7 @@ function drive_is_spinning() {
         ;;
         "hdparm")
             # It is currently unknown if hdparm also needs to differentiates between ATA and SCSI drives
-            if [[ -z $(hdparm -C "/dev/$1" | grep 'standby') ]]; then echo 1; else echo 0; fi
+            if [[ -z $(smartctl -i -n standby "/dev/$1" | grep 'STANDBY') ]]; then echo 1; else echo 0; fi
         ;;
     esac
 }
@@ -510,7 +510,7 @@ function spindown_drive() {
                     fi
                 ;;
                 "hdparm")
-                    hdparm -q -y "/dev/$1"
+                    smartctl -s standby,now "/dev/$1"
                 ;;
             esac
 
