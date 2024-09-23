@@ -490,6 +490,10 @@ function print_drive_power_states() {
     log "Drive power states: ${powerstates:1}"
 }
 
+function smart_test_is_running() {
+    if [[ -z $(smartctl -a "/dev/$1" | grep '%') ]]; then echo 0; else echo 1; fi
+}
+
 ##
 # Forces the spindown of the drive specified by parameter $1 trough camcontrol
 #
@@ -498,25 +502,29 @@ function print_drive_power_states() {
 ##
 function spindown_drive() {
     if [[ $(drive_is_spinning $1) -eq 1 ]]; then
-        if [[ $DRYRUN -eq 0 ]]; then
-            case $DISK_PARM_TOOL in
-                "camcontrol")
-                    if [[ $(is_ata_drive $1) -eq 1 ]]; then
-                        # Spindown ATA drive
-                        camcontrol standby $1
-                    else
-                        # Spindown SCSI drive
-                        camcontrol stop $1
-                    fi
-                ;;
-                "hdparm")
-                    smartctl -s standby,now "/dev/$1"
-                ;;
-            esac
+        if [[ $(smart_test_is_running $1) -eq 0 ]]; then
+            if [[ $DRYRUN -eq 0 ]]; then
+                case $DISK_PARM_TOOL in
+                    "camcontrol")
+                        if [[ $(is_ata_drive $1) -eq 1 ]]; then
+                            # Spindown ATA drive
+                            camcontrol standby $1
+                        else
+                            # Spindown SCSI drive
+                            camcontrol stop $1
+                        fi
+                    ;;
+                    "hdparm")
+                        smartctl -s standby,now "/dev/$1"
+                    ;;
+                esac
 
-            log "Spun down idle drive: $1"
+                log "Spun down idle drive: $1"
+            else
+                log "Would spin down idle drive: $1. No spindown was performed (dry run)."
+            fi
         else
-            log "Would spin down idle drive: $1. No spindown was performed (dry run)."
+            log_verbose "SMART Test is running: $1"
         fi
     else
         log_verbose "Drive is already spun down: $1"
